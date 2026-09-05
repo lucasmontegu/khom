@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "button-label",
+  "revision": 1,
+  "goal": "Cambiar el texto del botón de envío a Guardar",
+  "mode": "direct",
+  "repo": "owner/pilot",
+  "baseSha": "0000000000000000000000000000000000000000",
+  "deliveryTarget": "ready_to_merge",
+  "acceptance": [{"id":"AC1","condition":"El botón de envío muestra Guardar","kind":"targeted-test"}],
+  "invariants": ["Conservar el comportamiento del formulario"],
+  "allowed": ["Editar la branch del cambio", "Ejecutar pruebas", "Crear draft PR"],
+  "outOfScope": ["Merge", "Publicación en producción"],
+  "budgets": {"maxAttempts":3,"maxRunMinutes":60,"maxStagnation":2}
+}

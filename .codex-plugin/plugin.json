@@ -1,0 +1,22 @@
+{
+  "name": "khom",
+  "version": "0.1.0",
+  "description": "Contratos verificables y supervisión de entregas con Codex",
+  "author": {
+    "name": "Lucas"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Khom",
+    "shortDescription": "Entregas verificables con Codex.",
+    "longDescription": "Khom organiza contratos, autorización versionada, ejecución acotada y evidencia de entrega. Base inicial del controlador y plugin para Codex.",
+    "developerName": "Lucas",
+    "category": "Productivity",
+    "capabilities": [],
+    "defaultPrompt": [
+      "Planificar una entrega con Khom",
+      "Ver el estado de una ejecución",
+      "Analizar receipts de Khom"
+    ]
+  }
+}

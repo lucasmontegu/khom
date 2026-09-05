@@ -1,0 +1,1 @@
+{"name":"khom","version":"0.1.0","private":true,"type":"module","engines":{"node":">=24"},"scripts":{"test":"node --test","start":"node src/server.js","check":"node --check src/core.js && node --check src/server.js && node --check src/codex.js"}}
