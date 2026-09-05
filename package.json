@@ -1,1 +1,21 @@
-{"name":"khom","version":"0.1.0","private":true,"type":"module","engines":{"node":">=24"},"scripts":{"test":"node --test","start":"node src/server.js","check":"node --check src/core.js && node --check src/server.js && node --check src/codex.js"}}
+{
+  "name": "khom",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "start": "node src/server.js",
+    "check": "node --check src/core.js && node --check src/server.js && node --check src/codex.js && node --check src/model-policy.js && node --check src/browser.js && node --check src/browser-plan.js && node --check src/vercel-deployment.js && node --check scripts/verify-browser.js && node --check scripts/model-route.js",
+    "test:browser": "node --test test/browser.integration.js",
+    "browser:install": "playwright install chromium",
+    "verify:browser": "node scripts/verify-browser.js",
+    "model:route": "node scripts/model-route.js"
+  },
+  "dependencies": {
+    "@playwright/test": "1.63.0"
+  }
+}

@@ -16,13 +16,13 @@ El repositorio de proyecto indicado por Lucas es `https://github.com/lucasmonteg
 
 ## Cobertura comprobada
 
-11 pruebas automatizadas cubren aprobación versionada, deduplicación, exclusión concurrente, evidencia de SHA obsoleto, rechazo de autoaprobación del maker, review independiente, base del PR, intentos sin progreso, receipts, sucesores, stop, fencing, reinicio durable, deadline, invalidación de contrato durante intento, límite de contexto, hash de skill y autenticación HTTP.
+La suite del núcleo cubre aprobación versionada, deduplicación, exclusión concurrente, evidencia de SHA obsoleto, rechazo de autoaprobación del maker, review independiente, base del PR, intentos sin progreso, receipts, sucesores, stop, fencing, reinicio durable, deadline, invalidación de contrato durante intento, límite de contexto, hash de skill y autenticación HTTP.
 
 El test HTTP requiere permiso para abrir un puerto efímero de localhost. Se ejecutó fuera de la restricción de red del sandbox tras aprobación automática. No fue omitido.
 
 ## Desviaciones deliberadas y pendientes
 
-El PRD propone TypeScript/Postgres. Esta base usa JavaScript ESM sin dependencias y SQLite para probar invariantes localmente. No es la decisión definitiva del control plane cloud. La adaptación a Postgres debe preservar transacciones, índice de exclusión e idempotencia; no usar SQLite sobre un filesystem efímero.
+El PRD propone TypeScript/Postgres. Esta base usa JavaScript ESM, Playwright fijado en lockfile y SQLite para probar invariantes localmente. No es la decisión definitiva del control plane cloud. La adaptación a Postgres debe preservar transacciones, índice de exclusión e idempotencia; no usar SQLite sobre un filesystem efímero.
 
 La revisión de contrato es conservadora: toda actualización invalida la aprobación y detiene el resultado activo. Separar deltas técnicos de cambios materiales puede añadirse cuando exista evidencia del piloto.
 
@@ -37,7 +37,7 @@ La evidencia es validada estructuralmente por el gate; los collectors reales deb
 3. Conectar un dispatcher secuencial, heartbeat de lease, outbox y reconciliación. Separar errores transitorios, checkpoint guided y reparación loop por hipótesis nueva.
 4. Incorporar Postgres administrado y autenticación de control plane web; migraciones y backup.
 5. GitHub: branch `khom/<change-id>`, único draft PR, checks y validación del SHA. Vercel: deployment inmutable asociado a ese SHA.
-6. Verificación determinista y browser en contexto independiente; judge nuevo sin credenciales de escritura.
+6. Conectar el verificador Playwright y el collector de previews ya implementados al dispatcher; judge nuevo sin credenciales de escritura.
 7. Gate final y marca ready con reconfirmación externa; receipts exportables y notificaciones accionables.
 8. Piloto real con laptop apagada y reinicio del controlador. F08/F09 son obligatorios antes de llamar MVP al sistema.
 
@@ -50,8 +50,14 @@ La evidencia es validada estructuralmente por el gate; los collectors reales deb
 - F08: pendiente de integración Vercel Sandbox y prueba laptop apagada.
 - F09: persistencia y no redispatch de lease incierto probados; reconciliación externa pendiente.
 - F10: integración GitHub/Vercel pendiente.
-- F11/F12: gates internos probados; collectors y judge real pendientes.
+- F11/F12: gates por escenario/viewport y collector de preview implementados y probados con fixtures; prueba Vercel real, reconfirmación de HEAD y judge real pendientes.
 - F13: pendiente de aislamiento por proyecto; API inicial de un propietario.
 - F14: stop y rechazo de resultado posterior probados; cancelación del proveedor pendiente.
 - F15: receipts JSON para cierres implementados; artefactos y exportación completa pendientes.
 - F16: único target `ready_to_merge`; no confundir con deployed.
+
+## Routing y browser verification
+
+Implementados en `src/model-policy.js`, `src/codex.js`, `src/browser.js` y `src/vercel-deployment.js`. La política se fija al guardar/aprobar el contrato y se registra por intento. El adapter admite selección explícita y captura usage JSONL. Playwright produce evidencia con escenario/hash, viewport, screenshot y SHA; localhost nunca satisface un gate remoto.
+
+Las pruebas incluyen un proceso CLI falso (sin consumo de modelo) y Chromium real con servidores locales. Las consultas Vercel usan fixtures; no hay prueba contra una cuenta remota todavía. Los comandos y límites se documentan en el README y `MODELS_AND_BROWSER.md`.

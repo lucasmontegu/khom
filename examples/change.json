@@ -7,9 +7,34 @@
   "repo": "owner/pilot",
   "baseSha": "0000000000000000000000000000000000000000",
   "deliveryTarget": "ready_to_merge",
-  "acceptance": [{"id":"AC1","condition":"El botón de envío muestra Guardar","kind":"targeted-test"}],
-  "invariants": ["Conservar el comportamiento del formulario"],
-  "allowed": ["Editar la branch del cambio", "Ejecutar pruebas", "Crear draft PR"],
-  "outOfScope": ["Merge", "Publicación en producción"],
-  "budgets": {"maxAttempts":3,"maxRunMinutes":60,"maxStagnation":2}
+  "acceptance": [
+    {
+      "id": "AC1",
+      "condition": "El botón de envío muestra Guardar",
+      "kind": "targeted-test"
+    }
+  ],
+  "invariants": [
+    "Conservar el comportamiento del formulario"
+  ],
+  "allowed": [
+    "Editar la branch del cambio",
+    "Ejecutar pruebas",
+    "Crear draft PR"
+  ],
+  "outOfScope": [
+    "Merge",
+    "Publicación en producción"
+  ],
+  "budgets": {
+    "maxAttempts": 3,
+    "maxRunMinutes": 60,
+    "maxStagnation": 2
+  },
+  "risk": "standard",
+  "modelPolicy": {
+    "version": 1,
+    "maxTier": "astra",
+    "effort": "medium"
+  }
 }

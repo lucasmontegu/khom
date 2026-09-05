@@ -32,6 +32,27 @@ Un implementador no aprueba su propia entrega. Tests, HEAD del PR, revisión de 
 
 El target es ready_to_merge. Merge y producción requieren autorización independiente. Si se pidió ejecución remota y falta la integración de Vercel Sandbox, informar ese bloqueo; no usar local como fallback silencioso.
 
+## Selección de modelo y costo
+
+Consultar `npm run model:route -- <contrato.json> <tarea> <intentos-fallidos>` desde la raíz de Khom. No ejecuta un modelo ni cambia el modelo de la sesión actual.
+
+- Luna: implementación acotada, reparación puntual y resúmenes.
+- Sol: planning, clarificación, diagnóstico y review habituales; implementación de alto riesgo.
+- Astra: planning/diagnóstico/review de alto riesgo y escalación autorizada.
+- `verify`, `browser`, `checks`, `state`: herramientas deterministas, sin llamada adicional a un modelo.
+
+El contrato guarda `risk` y `modelPolicy` (versión, techo y esfuerzo). Cambiarlos exige nueva revisión y aprobación. Una escalación no agrega intentos ni presupuesto. Si el modelo requerido supera `maxTier` o no está disponible, detener esa acción y registrar el motivo; nunca sustituirlo silenciosamente.
+
+En una sesión existente, aplicar la selección solamente cuando la herramienta de delegación permita elegir modelo y esa delegación esté autorizada. No afirmar que leer esta skill cambia el modelo raíz. Para workers CLI, el adapter pasa modelo y esfuerzo explícitos. Registrar la selección y el consumo real disponible; no inventar ahorro monetario.
+
+## Verificación de navegador
+
+Playwright es el verificador de UI por defecto. Usar escenarios declarativos de `examples/browser-change.json` con aceptación, pasos, assertions y viewport. Ejecutar `npm run verify:browser -- <contrato.json> <snapshot.json>` desde la raíz de Khom después de preparar dependencias (`npm ci`, `npm run browser:install`).
+
+El modo remoto exige un deployment Vercel de preview con procedencia GitHub y consulta al proveedor antes/después. `--local` solo admite localhost y produce evidencia local que no satisface el gate remoto. Guardar el reporte JSON y las capturas; no marcar una aceptación cumplida solo porque se abrió la página. Cada escenario y viewport autorizado necesita evidencia vigente.
+
+No modificar assertions o el escenario para hacer pasar una falla sin revisar el contrato. No incluir credenciales en pasos; usar fixtures. El verificador actual bloquea requests a otros orígenes y no incorpora bypass de previews protegidas. Esos flujos permanecen pendientes cuando requieren acceso adicional. Una captura no sustituye un juicio visual de diseño o una auditoría de accesibilidad.
+
 ## API inicial
 
 Configurar `KHOM_API_URL` y `KHOM_API_TOKEN` en el entorno, nunca en Git ni prompts. La API usa `Authorization: Bearer`.

@@ -4,7 +4,7 @@ Harness propietario de entrega para **Codex**: definir un objetivo, acordar un c
 
 **Proveedor remoto elegido: Vercel Sandbox.** Podés usar la skill en una sesión de Codex con el entorno de esa sesión. Para ejecución independiente de la laptop, el destino será Vercel Sandbox.
 
-> **Versión 0.1 — base funcional de desarrollo.** Incluye skill/plugin, API local, estado durable, context compiler y gates de aceptación. El dispatcher de Vercel Sandbox y las integraciones automáticas de GitHub/Vercel todavía no están implementados. Un run creado por API queda en cola; no inicia un worker.
+> **Versión 0.1 — base funcional de desarrollo.** Incluye skill/plugin, routing de modelos, API local, estado durable, context compiler y verificación Playwright con evidencia. El dispatcher de Vercel Sandbox y las integraciones automáticas de GitHub/Vercel todavía no están implementados. Un run creado por API queda en cola; no inicia un worker.
 
 ## 1. Descargar y comprobar
 
@@ -13,11 +13,12 @@ Requisitos: Git y Node.js **24 o posterior**. Para trabajar con la skill, necesi
 ```sh
 git clone https://github.com/lucasmontegu/khom.git
 cd khom
+npm ci
 npm test
 npm run check
 ```
 
-No hace falta `npm install`: esta versión usa módulos nativos de Node.js. Las pruebas incluyen un servidor HTTP temporal en localhost.
+`npm ci` instala la versión fijada de Playwright del lockfile. Las pruebas de núcleo incluyen un servidor HTTP temporal; los tests con navegador real se ejecutan por separado con `npm run test:browser`, después de instalar Chromium.
 
 ## 2. Usarlo dentro de Codex
 
@@ -153,6 +154,78 @@ El flujo previsto es: plugin Codex → controlador durable → Vercel Sandbox co
 
 Todavía no hay comando `khom deploy`, SDK de Sandbox conectado ni credenciales Vercel requeridas para probar esta versión local. La [guía de integración](docs/VERCEL_SANDBOX.md) detalla lo que falta y la documentación oficial. El sandbox alojará ejecución; el estado de contratos, autorizaciones y receipts deberá persistir fuera del workspace descartable.
 
+## 6. Elegir modelos por tarea
+
+La política inicial busca reducir llamadas costosas sin debilitar la aceptación:
+
+| Tarea | Riesgo bajo/normal | Riesgo alto |
+| --- | --- | --- |
+| Implementar o reparar | Luna | Sol |
+| Clarificar, planificar, diagnosticar o revisar | Sol | Astra |
+| Resumir | Luna | Sol |
+| Ejecutar tests, navegador, checks o estado | Sin modelo | Sin modelo |
+
+`examples/change.json` incluye:
+
+```json
+"risk": "standard",
+"modelPolicy": { "version": 1, "maxTier": "astra", "effort": "medium" }
+```
+
+`risk` admite `low`, `standard`, `high`. `maxTier` admite `luna`, `sol`, `astra`; `effort` admite `low`, `medium`, `high`. La selección no baja de modelo para encajar en el techo: pide aprobación si necesita superarlo. Cambiar la política requiere una revisión nueva del contrato. Los contratos antiguos sin política explícita deben revisarse antes del siguiente intento.
+
+Comprobar la selección, **sin ejecutar ni consumir un modelo**:
+
+```sh
+npm run model:route -- examples/change.json implement
+npm run model:route -- examples/change.json plan
+npm run model:route -- examples/change.json review
+npm run model:route -- examples/change.json implement 1
+npm run model:route -- examples/change.json browser
+```
+
+Un fallo de implementación reparable eleva Luna a Sol; dos, a Astra, siempre dentro del techo y los límites de intentos/estancamiento. La selección por sí sola no autoriza ni agenda un reintento. El controller calcula fallos desde el historial persistido. Cada intento conserva modelo solicitado, esfuerzo, motivo y hash de política; el consumo se guarda cuando el proveedor lo reporta. El costo monetario sigue como `unavailable`.
+
+El adapter `executeCodex` usa `--model` y `model_reasoning_effort` explícitos. Una revisión abre contexto efímero y sandbox `read-only`. El helper acepta `availableModels` para bloquear modelos ausentes; la validación de disponibilidad en la cuenta remota corresponde al provisioning. **La skill no cambia automáticamente el modelo de esta conversación.** Ver [integración del adapter y receipts](docs/MODELS_AND_BROWSER.md).
+
+## 7. Verificar UI con Playwright
+
+Instalar Chromium y correr los tests reales (desde la raíz de Khom):
+
+```sh
+export PLAYWRIGHT_BROWSERS_PATH="$PWD/.khom-runtime/browsers"
+npm run browser:install
+npm run test:browser
+```
+
+Con `npm start` en otra terminal, preparar un snapshot local con el SHA de tu checkout:
+
+```sh
+mkdir -p .khom-runtime
+node --input-type=module -e '
+import { writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+writeFileSync(".khom-runtime/browser-snapshot.json", JSON.stringify({
+  repo: "lucasmontegu/khom",
+  sha: execFileSync("git", ["rev-parse", "HEAD"], {encoding:"utf8"}).trim(),
+  url: "http://127.0.0.1:4317"
+}, null, 2));
+'
+npm run verify:browser -- examples/browser-change.json .khom-runtime/browser-snapshot.json --local
+```
+
+El comando prueba el panel en escritorio y móvil. Devuelve `status`, `scope` y la ruta del reporte; sale con código `1` si falla. Los JSON y capturas quedan en `.khom-runtime/browser/<id>/`. La evidencia local **no puede aprobar una entrega remota**. El SHA local es una referencia declarada por quien corre el comando, no una verificación externa del contenido servido.
+
+Para una preview real de Vercel, preparar un snapshot con `repo`, `sha`, `deploymentId` y la `url` inmutable del deployment (solo el origen HTTPS, sin slash final ni alias de branch). Configurar `VERCEL_TOKEN` y, si corresponde, `VERCEL_TEAM_ID` en el entorno. Ejecutar sin `--local`:
+
+```sh
+npm run verify:browser -- contrato-aprobado.json snapshot-preview.json
+```
+
+El collector consulta Vercel antes y después, exige procedencia GitHub y rechaza producción, SHA/repo distintos o deployment no listo. El gate exige todas las combinaciones de escenario/viewport del contrato, con screenshots y hash del escenario. La integración externa necesita probarse con tu proyecto; las pruebas automatizadas usan fixtures locales y respuestas Vercel simuladas.
+
+Los escenarios admiten `click`, `fill`, `press`, `expectVisible`, `expectText`, `expectValue`, con selectores Playwright. Deben incluir al menos una assertion. Se bloquean otros orígenes y redirects iniciales; las previews protegidas sin acceso autorizado fallan. Usar datos de prueba, nunca secretos en el contrato. Las capturas prueban lo observado; no aprueban por sí solas calidad visual o accesibilidad.
+
 ## Desarrollo y límites
 
 - `src/core.js`: contratos, aprobación por hash, context compiler, gates, leases y receipts.
@@ -163,6 +236,6 @@ Todavía no hay comando `khom deploy`, SDK de Sandbox conectado ni credenciales 
 
 `Store.complete` y `Store.reconcile` son interfaces internas de confianza. Antes de utilizarlas con workers reales, conectar collectors independientes y reconfirmación externa de HEAD, checks y cancelación. La validación estructural no prueba por sí sola que GitHub o Vercel aprobaron algo.
 
-Pendientes: dispatcher remoto, recuperación externa, autenticación Codex en Sandbox, PR/checks automáticos, browser verification, judge real, aislamiento por cliente y notificaciones. El target de entrega es **ready_to_merge**; merge y producción son acciones separadas.
+Pendientes: dispatcher remoto, recuperación externa, autenticación Codex en Sandbox, PR/checks automáticos, judge real, aislamiento por cliente y notificaciones. El collector de preview y Playwright ya existen; falta conectarlos al dispatcher remoto. El target de entrega es **ready_to_merge**; merge y producción son acciones separadas.
 
 Código propietario; no se concede una licencia de redistribución.

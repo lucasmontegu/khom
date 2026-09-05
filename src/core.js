@@ -1,3 +1,5 @@
+import { resolvePolicy, selectExecution } from './model-policy.js';
+import { validateBrowserPlan, currentBrowserEvidence } from './browser-plan.js';
 import { DatabaseSync } from 'node:sqlite';
 import { createHash, randomUUID } from 'node:crypto';
 export const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
@@ -9,6 +11,9 @@ export function validateContract(c) {
   if (!Array.isArray(c.acceptance) || !c.acceptance.length || c.acceptance.some(a => !a.id || !a.condition || !a.kind) || new Set(c.acceptance.map(a=>a.id)).size !== c.acceptance.length) throw Error('Acceptance criteria required');
   for (const field of ['invariants','allowed','outOfScope']) if (!Array.isArray(c[field])) throw Error(`Missing ${field}`);
   for (const key of ['maxAttempts','maxRunMinutes','maxStagnation']) if (!Number.isInteger(c.budgets?.[key]) || c.budgets[key] < 1) throw Error(`Invalid budget ${key}`);
+  resolvePolicy(c.modelPolicy);
+  if (c.risk !== undefined && !['low', 'standard', 'high'].includes(c.risk)) throw Error('Invalid contract risk');
+  validateBrowserPlan(c);
   return c;
 }
 export function compileContext(contract, {sha, capability='implement', skill, files=[], instructions='', failure=null, maxBytes=48000}) {
@@ -23,10 +28,10 @@ export function gate(contract, snapshot, evidence, judgement) {
   const reasons=[];
   if (!snapshot?.sha || snapshot.repo !== contract.repo || snapshot.baseSha !== contract.baseSha || !snapshot.pr || snapshot.checks !== 'pass') reasons.push('Current PR, base and passing checks required');
   for (const ac of contract.acceptance) {
-    const valid=evidence.some(e=>e.acceptanceId===ac.id && e.kind===ac.kind && e.status==='pass' && e.sha===snapshot?.sha && e.repo===contract.repo && e.revision===contract.revision && e.producer==='verifier' && e.artifact && e.observedAt && (e.kind!=='browser' || (e.deploymentId===snapshot.deploymentId && e.url===snapshot.url && e.viewport && e.scenario)));
+    const valid=ac.kind === 'browser' ? currentBrowserEvidence(contract, ac, snapshot, evidence) : evidence.some(e=>e.acceptanceId===ac.id && e.kind===ac.kind && e.status==='pass' && e.sha===snapshot?.sha && e.repo===contract.repo && e.revision===contract.revision && e.producer==='verifier' && e.artifact && e.observedAt);
     if (!valid) reasons.push(`Missing current evidence: ${ac.id}`);
   }
-  if (contract.mode!=='direct' && (!judgement || judgement.verdict!=='pass' || judgement.sha!==snapshot?.sha || judgement.revision!==contract.revision || judgement.producer!=='judge' || judgement.findings?.some(f=>['critical','high'].includes(f.severity)))) reasons.push('Independent current judgement required');
+  if ((contract.mode!=='direct' || contract.risk==='high') && (!judgement || judgement.verdict!=='pass' || judgement.sha!==snapshot?.sha || judgement.revision!==contract.revision || judgement.producer!=='judge' || judgement.findings?.some(f=>['critical','high'].includes(f.severity)))) reasons.push('Independent current judgement required');
   return {pass:reasons.length===0,reasons};
 }
 export class Store {
@@ -40,7 +45,7 @@ export class Store {
   }
   transaction(fn) {this.db.exec('BEGIN IMMEDIATE');try {const result=fn();this.db.exec('COMMIT');return result;}catch(e){this.db.exec('ROLLBACK');throw e;}}
   change(id) {const row=this.db.prepare('SELECT * FROM changes WHERE id=?').get(id);if(!row) throw Error('Unknown change');return {...JSON.parse(row.body),approved:row.approved};}
-  put(c) { validateContract(c); return this.transaction(()=>{
+  put(c) { validateContract(c); c = { ...structuredClone(c), risk: c.risk ?? 'standard', modelPolicy: resolvePolicy(c.modelPolicy) }; return this.transaction(()=>{
     const old=this.db.prepare('SELECT body FROM changes WHERE id=?').get(c.id);
     if(old && c.revision<=JSON.parse(old.body).revision) throw Error('Revision must increase');
     this.db.prepare('INSERT INTO changes VALUES(?,?,NULL) ON CONFLICT(id) DO UPDATE SET body=excluded.body, approved=NULL').run(c.id,JSON.stringify(c));return c;
@@ -58,24 +63,31 @@ export class Store {
     const r={id:randomUUID(),changeId:id,contract:c,parent,state:'queued',createdAt:Date.now(),attempts:[],evidence:[],fence:0,lease:null,reason:null};
     this.db.prepare('INSERT INTO runs VALUES(?,?,?,?)').run(r.id,id,key,JSON.stringify(r));return r;
   });}
-  claim(id,owner,now=Date.now()) {return this.transaction(()=>{
+  claim(id,owner,now=Date.now(),task='implement') {return this.transaction(()=>{
     const r=this.get(id);if(terminal.has(r.state)||r.state==='cancelling')throw Error('Run is not dispatchable');
     if(r.lease) throw Error(r.lease.until>now ? 'Worker already owns lease':'Expired lease requires reconciliation; do not redispatch');
     const current=this.change(r.changeId);delete current.approved;
     if(hash(current)!==hash(r.contract))return this.finish(r,'needs_decision','Contract revision changed');
     if(now-r.createdAt>=r.contract.budgets.maxRunMinutes*60000 || r.attempts.length>=r.contract.budgets.maxAttempts)return this.finish(r,'exhausted','Execution budget exhausted');
-    r.state='running';r.fence++;r.lease={owner,until:now+60000};r.attempts.push({id:randomUUID(),state:'intent',fence:r.fence,createdAt:now});return this.save(r);
+    if (!r.contract.modelPolicy) return this.finish(r,'approval_required','Legacy contract has no approved model policy; approve a new revision');
+    const failedAttempts = r.attempts.filter(a => a.outcome === 'failed' && ['implement','repair','debug'].includes(a.execution?.task)).length;
+    const execution = selectExecution({ task, risk: r.contract.risk, failedAttempts, policy: r.contract.modelPolicy });
+    if (execution.kind === 'decision') return this.finish(r,'approval_required',execution.reason);
+    r.state='running';r.fence++;r.lease={owner,until:now+60000};r.attempts.push({id:randomUUID(),state:'intent',fence:r.fence,createdAt:now,execution,usage:'unavailable'});return this.save(r);
   });}
   finish(r,state,reason) {if(!terminal.has(state))throw Error('Invalid terminal state');r.state=state;r.reason=reason;r.finishedAt=Date.now();r.lease=null;this.save(r);this.db.prepare('INSERT INTO receipts VALUES(?,?)').run(r.id,JSON.stringify({...r,schemaVersion:1,provider:'codex',cost:'unavailable',nextAction:['succeeded','no_op'].includes(state)?'Review PR before merge':'Inspect reason and authorize successor run'}));return r;}
   stop(id) {return this.transaction(()=>{const r=this.get(id);if(terminal.has(r.state))return r;if(!r.lease)return this.finish(r,'cancelled','Stopped before dispatch');r.state='cancelling';r.reason='Cancellation requested; provider confirmation pending';return this.save(r);});}
   reconcile(id,fence,{confirmedStopped=false}={}) {return this.transaction(()=>{const r=this.get(id);if(r.fence!==fence || !r.lease)throw Error('Stale fencing token');if(!confirmedStopped)throw Error('Provider termination must be confirmed');return this.finish(r,r.state==='cancelling'?'cancelled':'blocked','Provider stopped; inspect workspace before successor run');});}
-  complete(id,fence,{snapshot,evidence=[],judgement=null,progress=false,contextManifest=null},now=Date.now()) {return this.transaction(()=>{
+  complete(id,fence,{snapshot,evidence=[],judgement=null,progress=false,contextManifest=null,usage='unavailable'},now=Date.now()) {return this.transaction(()=>{
     const r=this.get(id);if(r.state!=='running'||r.fence!==fence||!r.lease||r.lease.until<=now)throw Error('Stale or cancelled worker');
     const current=this.change(r.changeId);delete current.approved;
     if(hash(current)!==hash(r.contract))return this.finish(r,'needs_decision','Contract changed during attempt');
-    const attempt=r.attempts.at(-1);Object.assign(attempt,{state:'completed',snapshot,contextManifest});r.evidence=evidence;r.judgement=judgement;
+    const attempt=r.attempts.at(-1);Object.assign(attempt,{state:'completed',snapshot,contextManifest,usage});r.evidence=evidence;r.judgement=judgement;
     if(now-r.createdAt>=r.contract.budgets.maxRunMinutes*60000)return this.finish(r,'exhausted','Run deadline reached');
     const result=gate(r.contract,snapshot,evidence,judgement);
+    const verifiedFailure = evidence.some(e => e.producer === 'verifier' && e.status === 'fail' && e.sha === snapshot?.sha && e.repo === r.contract.repo && e.revision === r.contract.revision && r.contract.acceptance.some(ac => ac.id === e.acceptanceId && ac.kind === e.kind));
+    const reviewFailure = judgement?.producer === 'judge' && judgement.verdict === 'fail' && judgement.sha === snapshot?.sha && judgement.revision === r.contract.revision;
+    attempt.outcome = result.pass ? 'passed' : (verifiedFailure || reviewFailure) ? 'failed' : 'unverified';
     if(result.pass)return this.finish(r,'succeeded','Current acceptance evidence and delivery gate passed');
     r.stagnation=progress?0:(r.stagnation??0)+1;r.reason=result.reasons.join('; ');r.lease=null;
     if(r.contract.mode!=='loop')return this.finish(r,'needs_decision',r.reason);
