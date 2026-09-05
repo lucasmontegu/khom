@@ -1,0 +1,17 @@
+{
+  "name": "khom",
+  "version": "0.1.0",
+  "description": "Plan scoped changes, verify acceptance and collect browser evidence with Khom.",
+  "author": {
+    "name": "Lucas"
+  },
+  "repository": "https://github.com/lucasmontegu/khom",
+  "homepage": "https://github.com/lucasmontegu/khom#readme",
+  "keywords": [
+    "delivery",
+    "planning",
+    "review",
+    "playwright"
+  ],
+  "skills": "./skills/"
+}

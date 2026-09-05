@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 1,
+  "id": "khom-panel",
+  "revision": 1,
+  "goal": "Mostrar el panel de Khom y permitir identificar el acceso",
+  "mode": "guided",
+  "repo": "lucasmontegu/khom",
+  "baseSha": "0000000000000000000000000000000000000000",
+  "deliveryTarget": "ready_to_merge",
+  "acceptance": [
+    {
+      "id": "UI1",
+      "condition": "El panel identifica Khom y permite ingresar el token de acceso",
+      "kind": "browser"
+    }
+  ],
+  "invariants": [
+    "No modificar autenticación ni disparar runs durante la verificación"
+  ],
+  "allowed": [
+    "Editar la branch del cambio",
+    "Ejecutar pruebas",
+    "Crear draft PR"
+  ],
+  "outOfScope": [
+    "Merge",
+    "Publicación en producción"
+  ],
+  "budgets": {
+    "maxAttempts": 3,
+    "maxRunMinutes": 60,
+    "maxStagnation": 2
+  },
+  "risk": "standard",
+  "modelPolicy": {
+    "version": 1,
+    "maxTier": "astra",
+    "effort": "medium"
+  },
+  "browser": {
+    "engine": "playwright",
+    "scenarios": [
+      {
+        "id": "panel-desktop",
+        "acceptanceIds": [
+          "UI1"
+        ],
+        "path": "/",
+        "viewport": {
+          "width": 1280,
+          "height": 800
+        },
+        "steps": [
+          {
+            "action": "expectText",
+            "selector": "h1",
+            "value": "khom."
+          },
+          {
+            "action": "expectVisible",
+            "selector": "input[type=\"password\"]"
+          },
+          {
+            "action": "expectText",
+            "selector": "#connect",
+            "value": "Ver ejecuciones"
+          }
+        ]
+      },
+      {
+        "id": "panel-mobile",
+        "acceptanceIds": [
+          "UI1"
+        ],
+        "path": "/",
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "steps": [
+          {
+            "action": "expectVisible",
+            "selector": "h1"
+          },
+          {
+            "action": "expectVisible",
+            "selector": "#connect"
+          }
+        ]
+      }
+    ]
+  }
+}

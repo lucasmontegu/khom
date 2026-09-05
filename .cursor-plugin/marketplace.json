@@ -1,0 +1,17 @@
+{
+  "name": "khom",
+  "owner": {
+    "name": "Lucas"
+  },
+  "metadata": {
+    "description": "Khom delivery workflow plugins for Cursor.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "khom",
+      "source": "./plugins/khom",
+      "description": "Versioned contracts, bounded work and verified delivery evidence."
+    }
+  ]
+}
