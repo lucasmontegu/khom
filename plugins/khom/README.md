@@ -292,3 +292,15 @@ Remaining work includes the remote dispatcher, external recovery, Codex authenti
 Additional design notes are currently in Spanish: [PRD](docs/PRD.md), [implementation status](docs/IMPLEMENTATION.md), [model/browser integration](docs/MODELS_AND_BROWSER.md), and [Vercel Sandbox decision](docs/VERCEL_SANDBOX.md).
 
 Proprietary code. No redistribution license is granted by this repository.
+
+## Addy Osmani and Matt Pocock workflows
+
+Khom includes **50 pinned upstream skills** with their references and MIT licenses. The plugin loads one discipline at a time through the Khom entry point. Choose `balanced` (default), `addy`, or `matt`; model routing remains independent.
+
+```sh
+npm run skill:route -- plan balanced
+npm run skill:route -- implement matt
+npm run skill:route -- review addy
+```
+
+See [workflow selection, host adaptation and updates](docs/SKILLS.md) and [third-party licenses](THIRD_PARTY_NOTICES.md). Khom's proprietary terms do not apply to the bundled MIT skills. No separate global installation is required.

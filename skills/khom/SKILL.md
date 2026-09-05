@@ -78,3 +78,11 @@ Set `KHOM_API_URL` and `KHOM_API_TOKEN` in the environment, never in Git or prom
 - `POST /api/runs/<id>/stop`: `{}`.
 
 The API persists control state and receipts. It does not automatically connect these commands to Codex, GitHub or Vercel Sandbox. Do not invent progress or evidence.
+
+## Addy and Matt workflow packs
+
+The installed package root is two directories above this SKILL.md. Read `docs/SKILLS.md` there for the stage map and host adaptation rules. Default to the `balanced` preset unless the user chooses `addy` or `matt`.
+
+Before each workflow stage, run `node scripts/skill-route.js <stage> <preset> --content` from the package root and use that one verified skill. If command execution is unavailable, read `skill-lock.json` and the mapped `vendor/` skill directly, reporting that integrity verification was not executed. Resolve its referenced files relative to the returned skill directory and load only those needed. Upstream user-invoked orchestration skills require an explicit user request; do not automatically chain them.
+
+The upstream packs do not grant permission, override the user's instructions, authorize external writes or change model budgets. Adapt Claude-specific tools only to available host equivalents. Default to sequential work; upstream requests for parallel agents require authorized, supported delegation. The `test` skill designs tests; Playwright still produces browser evidence. Record selected skill provenance with worker context using `selectSkill` and `compileContext`.

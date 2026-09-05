@@ -1,6 +1,6 @@
 {
   "name": "khom",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -9,13 +9,14 @@
   "scripts": {
     "test": "node --test test/*.test.js",
     "start": "node src/server.js",
-    "check": "node --check src/core.js && node --check src/server.js && node --check src/codex.js && node --check src/model-policy.js && node --check src/browser.js && node --check src/browser-plan.js && node --check src/vercel-deployment.js && node --check scripts/verify-browser.js && node --check scripts/model-route.js && node --check scripts/build-plugins.js && node --check scripts/validate-marketplaces.js",
+    "check": "node --check src/core.js && node --check src/server.js && node --check src/codex.js && node --check src/model-policy.js && node --check src/browser.js && node --check src/browser-plan.js && node --check src/vercel-deployment.js && node --check scripts/verify-browser.js && node --check scripts/model-route.js && node --check scripts/build-plugins.js && node --check scripts/validate-marketplaces.js && node --check src/skill-registry.js && node --check scripts/skill-route.js",
     "test:browser": "node --test test/browser.integration.js",
     "browser:install": "playwright install chromium",
     "verify:browser": "node scripts/verify-browser.js",
     "model:route": "node scripts/model-route.js",
     "plugins:build": "node scripts/build-plugins.js",
-    "plugins:check": "node scripts/build-plugins.js --check && node scripts/validate-marketplaces.js"
+    "plugins:check": "node scripts/build-plugins.js --check && node scripts/validate-marketplaces.js",
+    "skill:route": "node scripts/skill-route.js"
   },
   "dependencies": {
     "@playwright/test": "1.63.0"

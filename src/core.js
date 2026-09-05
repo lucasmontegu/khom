@@ -22,7 +22,7 @@ export function compileContext(contract, {sha, capability='implement', skill, fi
   const content = {schemaVersion:1, contract, sha, capability, instructions, skill:skill?.content ?? null, files, failure};
   const prompt=JSON.stringify(content); const bytes=Buffer.byteLength(prompt);
   if (bytes > maxBytes) throw Error('Essential context exceeds budget; split scope or authorize expansion');
-  return {prompt, manifest:{hash:hash(content), bytes, estimatedTokens:Math.ceil(bytes/4), skill:skill ? {id:skill.id, hash:skill.hash}:null, files:files.map(f=>({path:f.path,hash:hash(f.content)})), reason:'Contract, applicable instructions and explicitly selected files'}};
+  return {prompt, manifest:{hash:hash(content), bytes, estimatedTokens:Math.ceil(bytes/4), skill:skill ? {id:skill.id, hash:skill.hash, ...(skill.provenance ? {provenance:skill.provenance} : {})}:null, files:files.map(f=>({path:f.path,hash:hash(f.content)})), reason:'Contract, applicable instructions and explicitly selected files'}};
 }
 export function gate(contract, snapshot, evidence, judgement) {
   const reasons=[];

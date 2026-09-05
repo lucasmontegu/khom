@@ -7,7 +7,7 @@ const output = join(root, 'plugins', 'khom');
 const check = process.argv.includes('--check');
 // Explicit allowlist: never ship .git, secrets, node_modules, browsers or runtime artifacts.
 const inputs = ['.codex-plugin/plugin.json', '.cursor-plugin/plugin.json', '.gitignore',
-  'README.md', 'package.json', 'package-lock.json', 'skills', 'src', 'scripts', 'examples', 'docs', 'test'];
+  'vendor', 'skill-lock.json', 'THIRD_PARTY_NOTICES.md', 'README.md', 'package.json', 'package-lock.json', 'skills', 'src', 'scripts', 'examples', 'docs', 'test'];
 
 async function files(path) {
   const stat = await lstat(path);

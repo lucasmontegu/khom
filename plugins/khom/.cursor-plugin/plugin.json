@@ -1,6 +1,6 @@
 {
   "name": "khom",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Plan scoped changes, verify acceptance and collect browser evidence with Khom.",
   "author": {
     "name": "Lucas"
